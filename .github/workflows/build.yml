@@ -32,11 +32,16 @@ jobs:
 
       - name: Force Fix Android Environment and SDK Paths
         run: |
-          # 1. Принудительно создаем ВСЮ цепочку папок кэша заранее, чтобы ссылки не слетали
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools/bin
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
+          # 1. Создаем корневую директорию платформы, куда полезет Buildozer
+          mkdir -p /home/runner/.buildozer/android/platform/
           
-          # 2. Записываем хэши согласия со всеми лицензиями Google
+          # 2. Прибиваем весь Android SDK целиком через симлинк, если его еще нет
+          if [ ! -d "/home/runner/.buildozer/android/platform/android-sdk" ]; then
+            ln -s /usr/local/lib/android/sdk /home/runner/.buildozer/android/platform/android-sdk
+          fi
+          
+          # 3. Накатываем лицензии прямо в системный SDK гитхаба, чтобы Gradle не ругался
+          mkdir -p /usr/local/lib/android/sdk/licenses
           LICENSE_HASHES="
           24333f8a63b6825ea9c5514f83c2829b004d1fee
           893a4cd1c3e7463197415a91248ee225231d5bc0
@@ -45,18 +50,18 @@ jobs:
           4594c0d84d151c0747a4447c283439114e327203
           ed39065b3a4e2862f15c7756ec04ee7a0cb33d1b
           "
-          echo "$LICENSE_HASHES" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          
-          # 3. Прибиваем sdkmanager гвоздями к системному рабочему cmdline-tools гитхаба
-          ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
-          
-          # На всякий случай даем права на исполнение
-          chmod +x /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+          echo "$LICENSE_HASHES" > /usr/local/lib/android/sdk/licenses/android-sdk-license
 
       - name: Build APK with Buildozer
         run: |
-          # Прокидываем системный путь к SDK в переменные окружения самого Бульдозера
+          # Прокидываем пути во все возможные переменные для верности
           export ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
           export ANDROID_HOME="/usr/local/lib/android/sdk"
           
           buildozer android debug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: osanka-apk
+          path: bin/*.apk
