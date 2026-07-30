@@ -30,20 +30,14 @@ jobs:
             convert -size 512x512 xc:#F28073 icon.png
           fi
 
-      - name: Force Accept Android Licenses and Fix Sdkmanager Path
+      - name: Build APK with Pre-installed System Android SDK
         run: |
-          # 1. Создаем структуру папок для лицензий в будущем кэше Buildozer
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
+          # Перенаправляем Бульдозер на готовые, рабочие инструменты GitHub Actions
+          export ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
+          export ANDROID_HOME="/usr/local/lib/android/sdk"
           
-          # Записываем официальные хэши согласия Google
-          echo -e "\n893a4cd1c3e7463197415a91248ee225231d5bc0\nd56f5187479451eabf01fb74bf653453a3bc5610\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
-
-          # 2. ХИТРЫЙ ХАК ПУТЕЙ: Создаем мост для старого sdkmanager, связывая его с системным cmdline-tools
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools/bin
-          ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
-
-      - name: Build APK with Buildozer
-        run: |
-          # Запускаем сборку. Лицензии на месте, пути исправлены!
+          # Автоматически подписываем лицензии в системном SDK
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          
+          # Запускаем сборку
           buildozer android debug
