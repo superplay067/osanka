@@ -20,7 +20,7 @@ jobs:
 
       - name: Install pip, setuptools and buildozer
         run: |
-          pip install --upgrade pip setuptools virtualenv
+          python -m pip install --upgrade pip setuptools virtualenv
           pip install "cython<3.0.0" buildozer
 
       - name: Check and auto-create icon if missing
@@ -32,18 +32,25 @@ jobs:
 
       - name: Force Fix Android Environment and SDK Paths
         run: |
-          # 1. Сносим старые ссылки, если они криво легли
+          # 1. Сносим старый кривой кэш, если он остался
           rm -rf /home/runner/.buildozer/android/platform/android-sdk
           
-          # 2. Создаем структуру папок, которую жестко ищет старый Buildozer
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools/bin
+          # 2. Создаем чистую структуру папок локального SDK
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest
           mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
           
-          # 3. Прибиваем конкретно sdkmanager гвоздями к новому пути в системном SDK гитхаба
-          ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+          # 3. Скачиваем официальные cmdline-tools от Google (официальная стабильная версия)
+          wget https://google.com -O cmdline.zip
+          unzip -q cmdline.zip -d /tmp/cmdline
           
-          # 4. Накатываем хэши лицензий в обе папки (и в системную, и в локальную кэша)
-          mkdir -p /usr/local/lib/android/sdk/licenses
+          # 4. Переносим содержимое в структуру папок Buildozer
+          cp -r /tmp/cmdline/cmdline-tools/* /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/
+          
+          # 5. Делаем обратную совместимость для старого Buildozer (создаем ссылку на tools/bin)
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools
+          ln -sf /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin /home/runner/.buildozer/android/platform/android-sdk/tools/bin
+          
+          # 6. Накатываем хэши лицензий. Теперь у нас на них полные права, никакого Operation not permitted!
           LICENSE_HASHES="
           24333f8a63b6825ea9c5514f83c2829b004d1fee
           893a4cd1c3e7463197415a91248ee225231d5bc0
@@ -52,14 +59,16 @@ jobs:
           4594c0d84d151c0747a4447c283439114e327203
           ed39065b3a4e2862f15c7756ec04ee7a0cb33d1b
           "
-          echo "$LICENSE_HASHES" > /usr/local/lib/android/sdk/licenses/android-sdk-license
           echo "$LICENSE_HASHES" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          
+          # 7. Выставляем права на исполнение для скачанных бинарников
+          chmod +x /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/*
 
       - name: Build APK with Buildozer
         run: |
-          # Прокидываем системный путь к SDK в переменные окружения самого Бульдозера
-          export ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
-          export ANDROID_HOME="/usr/local/lib/android/sdk"
+          # Указываем Бульдозеру работать строго с нашей изолированной локальной папкой SDK
+          export ANDROID_SDK_ROOT="/home/runner/.buildozer/android/platform/android-sdk"
+          export ANDROID_HOME="/home/runner/.buildozer/android/platform/android-sdk"
           
           buildozer android debug
 
