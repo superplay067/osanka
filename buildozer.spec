@@ -30,5 +30,5 @@ android.ndk = 25b
 icon.filename = icon.png
 
 [buildozer]
-log_level = 2
+log_level = 1
 warn_on_root = 1
