@@ -13,6 +13,12 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Set up JDK 17 (Обязательно для Android API 34)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -21,7 +27,7 @@ jobs:
       - name: Install pip, setuptools and buildozer
         run: |
           python -m pip install --upgrade pip setuptools virtualenv
-          pip install "cython<3.0.0" buildozer
+          pip install "cython<3.0.0" git+https://github.com
 
       - name: Check and auto-create icon if missing
         run: |
@@ -30,23 +36,12 @@ jobs:
             convert -size 512x512 xc:#F28073 icon.png
           fi
 
-      - name: Force Fix Android Environment and SDK Paths
+      - name: Pre-accept Android Licenses Globally
         run: |
-          # 1. Сносим старый кривой кэш подчистую
-          rm -rf /home/runner/.buildozer/android/platform/android-sdk
+          # Создаем глобальную папку лицензий Android, которую чекают Gradle и sdkmanager
+          mkdir -p mkdir -p ~/.android/licenses
+          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
           
-          # 2. Создаем структуру папок локального SDK
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
-          
-          # 3. Копируем готовый системный cmdline-tools гитхаба в нашу локальную папку
-          cp -r /usr/local/lib/android/sdk/cmdline-tools/latest/* /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/
-          
-          # 4. Создаем зеркало tools/bin для проверок старого Buildozer
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools
-          ln -sf /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin /home/runner/.buildozer/android/platform/android-sdk/tools/bin
-          
-          # 5. Накатываем хэши лицензий прямо в наш локальный контролируемый SDK
           LICENSE_HASHES="
           24333f8a63b6825ea9c5514f83c2829b004d1fee
           893a4cd1c3e7463197415a91248ee225231d5bc0
@@ -55,17 +50,22 @@ jobs:
           4594c0d84d151c0747a4447c283439114e327203
           ed39065b3a4e2862f15c7756ec04ee7a0cb33d1b
           "
-          echo "$LICENSE_HASHES" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
           
-          # 6. Даем полные права на исполнение локальным бинарникам
-          chmod -R +x /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/
+          # Записываем хэши везде, где их может искать система
+          echo "$LICENSE_HASHES" > ~/.android/licenses/android-sdk-license
+          echo "$LICENSE_HASHES" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
 
       - name: Build APK with Buildozer
         run: |
-          # Указываем Бульдозеру работать строго с нашей изолированной локальной папкой SDK
-          export ANDROID_SDK_ROOT="/home/runner/.buildozer/android/platform/android-sdk"
-          export ANDROID_HOME="/home/runner/.buildozer/android/platform/android-sdk"
+          # 1. Принудительно выставляем Java 17 в переменные окружения для этого шага
+          export JAVA_HOME="/usr/lib/jvm/temurin-17-jdk-amd64"
+          export PATH="$JAVA_HOME/bin:$PATH"
           
+          # 2. Сбрасываем старые переменные путей, чтобы Buildozer качал SDK в свою чистую изолированную папку
+          unset ANDROID_SDK_ROOT
+          unset ANDROID_HOME
+          
+          # 3. Запуск сборки в тихом автоматическом режиме
           buildozer android debug
 
       - name: Upload APK Artifact
