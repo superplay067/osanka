@@ -22,7 +22,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libgdbm-dev libssl-dev libsqlite3-dev libffi-dev uuid-dev imagemagick
+          sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libgdbm-dev libssl-dev libsqlite3-dev libffi-dev uuid-dev imagemagick aidl
 
       - name: Install pip, setuptools and buildozer
         run: |
@@ -36,17 +36,28 @@ jobs:
             convert -size 512x512 xc:#F28073 icon.png
           fi
 
-      - name: Force Patch GitHub Actions System SDK
+      - name: Force Patch GitHub Actions System SDK and Build Tools
         run: |
-          # 1. Заходим в официальный предустановленный SDK гитхаба
-          # И создаем там старую структуру папок tools/bin, которую так хочет Бульдозер
+          # 1. Создаем структуру папок tools и build-tools в локальной папке, которую проверяет Buildozer
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools/bin
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/build-tools
+          mkdir -p ~/.android/licenses
+          
+          # 2. Перенаправляем проверку sdkmanager на системный бинарник гитхаба
           sudo mkdir -p /usr/local/lib/android/sdk/tools/bin
-          
-          # 2. Прибиваем симлинк на реальный sdkmanager прямо внутри системного SDK
           sudo ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /usr/local/lib/android/sdk/tools/bin/sdkmanager
+          ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
           
-          # 3. Накатываем хэши лицензий в системный SDK, чтобы Gradle не ругался
+          # 3. Решаем проблему с Aidl: связываем системную папку build-tools с локальным путем Бульдозера
+          sudo ln -sf /usr/local/lib/android/sdk/build-tools/* /home/runner/.buildozer/android/platform/android-sdk/build-tools/
+          
+          # На случай, если папка пуста, создаем дефолтную ссылку на системный aidl
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/build-tools/34.0.0
+          ln -sf /usr/bin/aidl /home/runner/.buildozer/android/platform/android-sdk/build-tools/34.0.0/aidl
+          
+          # 4. Накатываем хэши лицензий во все возможные места
           sudo mkdir -p /usr/local/lib/android/sdk/licenses
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
           SDK_HASHES="
           24333f8a63b6825ea9c5514f83c2829b004d1fee
           893a4cd1c3e7463197415a91248ee225231d5bc0
@@ -56,6 +67,8 @@ jobs:
           ed39065b3a4e2862f15c7756ec04ee7a0cb33d1b
           "
           echo "$SDK_HASHES" | sudo tee /usr/local/lib/android/sdk/licenses/android-sdk-license > /dev/null
+          echo "$SDK_HASHES" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          echo "$SDK_HASHES" > ~/.android/licenses/android-sdk-license
 
       - name: Build APK with Buildozer
         run: |
@@ -63,7 +76,7 @@ jobs:
           export JAVA_HOME="/usr/lib/jvm/temurin-17-jdk-amd64"
           export PATH="$JAVA_HOME/bin:$PATH"
           
-          # Направляем Buildozer строго на системный, Пропатченный нами SDK
+          # Указываем Бульдозеру корни сборки
           export ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
           export ANDROID_HOME="/usr/local/lib/android/sdk"
           
