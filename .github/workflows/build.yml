@@ -1,46 +1,46 @@
-name: Build Osanka APK
-on: [push, workflow_dispatch]
+name: Pure Clean Build Osanka APK
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  build_fresh_apk:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout code
+      - name: Checkout fresh repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Initialize clean Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Set up JDK 17 (Обязательно для Android API 34)
+      - name: Initialize clean JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install system dependencies
+      - name: Install fresh system tools
         run: |
           sudo apt-get update
           sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libgdbm-dev libssl-dev libsqlite3-dev libffi-dev uuid-dev imagemagick
 
-      - name: Install pip, setuptools and buildozer
+      - name: Force install stable packages from PyPI
         run: |
-          python -m pip install --upgrade pip setuptools virtualenv
-          python -m pip install "cython<3.0.0"
-          python -m pip install "git+https://github.com"
+          python -m pip install --no-cache-dir --upgrade pip setuptools virtualenv
+          python -m pip install --no-cache-dir "cython<3.0.0" buildozer
 
-      - name: Check and auto-create icon if missing
+      - name: Generate coral app icon
         run: |
           if [ ! -f "icon.png" ]; then
-            echo "⚠️ Иконка icon.png не найдена! Создаем временную коралловую заглушку..."
             convert -size 512x512 xc:#F28073 icon.png
           fi
 
-      - name: Pre-accept Android Licenses Globally
+      - name: Inject Android SDK licenses manually
         run: |
           mkdir -p ~/.android/licenses
-          mkdir -p ~/.gradle
           mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
           
           SDK_HASHES="
@@ -58,7 +58,7 @@ jobs:
           echo "$PREVIEW_HASH" > ~/.android/licenses/android-sdk-preview-license
           echo "$PREVIEW_HASH" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
 
-      - name: Build APK with Buildozer
+      - name: Compile Android APK via Buildozer
         run: |
           export JAVA_HOME="/usr/lib/jvm/temurin-17-jdk-amd64"
           export PATH="$JAVA_HOME/bin:$PATH"
@@ -68,8 +68,8 @@ jobs:
           
           buildozer android debug
 
-      - name: Upload APK Artifact
+      - name: Save Osanka APK binary
         uses: actions/upload-artifact@v4
         with:
-          name: osanka-apk
+          name: osanka-release-apk
           path: bin/*.apk
