@@ -30,14 +30,20 @@ jobs:
             convert -size 512x512 xc:#F28073 icon.png
           fi
 
-      - name: Pre-accept Android SDK Licenses Globally
+      - name: Force Accept Android Licenses into Buildozer Cache
         run: |
-          mkdir -p ~/.android
-          touch ~/.android/repositories.cfg
-          # Подписываем вообще все лицензии Google через системный SDK-менеджер
-          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          # Создаем структуру папок лицензий прямо в будущем кэше Buildozer
+          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
+          
+          # Записываем официальные хэши согласия Google (для SDK, Preview и NDK)
+          echo -e "\n893a4cd1c3e7463197415a91248ee225231d5bc0\nd56f5187479451eabf01fb74bf653453a3bc5610\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          echo -e "\n893a4cd1c3e7463197415a91248ee225231d5bc0\nd56f5187479451eabf01fb74bf653453a3bc5610\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          
+          echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+          echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
 
       - name: Build APK with Buildozer
         run: |
-          # Запускаем сборку. Все лицензии уже приняты шагом выше!
+          # Собираем в чистом режиме. Лицензии подкинуты вручную шагом выше!
           buildozer android debug
