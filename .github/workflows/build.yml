@@ -30,14 +30,13 @@ jobs:
             convert -size 512x512 xc:#F28073 icon.png
           fi
 
-      - name: Force Fix All Android Licenses in All Possible Paths
+      - name: Force Fix Android Environment and SDK Paths
         run: |
-          # Создаем папки лицензий везде: и в системном SDK, и в будущем кэше Бульдозера
-          mkdir -p /usr/local/lib/android/sdk/licenses
+          # 1. Принудительно создаем ВСЮ цепочку папок кэша заранее, чтобы ссылки не слетали
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools/bin
           mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
-          mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
           
-          # Официальные цифровые хэши согласия со всеми лицензиями Google (SDK, Preview, NDK)
+          # 2. Записываем хэши согласия со всеми лицензиями Google
           LICENSE_HASHES="
           24333f8a63b6825ea9c5514f83c2829b004d1fee
           893a4cd1c3e7463197415a91248ee225231d5bc0
@@ -46,16 +45,18 @@ jobs:
           4594c0d84d151c0747a4447c283439114e327203
           ed39065b3a4e2862f15c7756ec04ee7a0cb33d1b
           "
-          
-          # Записываем хэши во все целевые директории
-          echo "$LICENSE_HASHES" > /usr/local/lib/android/sdk/licenses/android-sdk-license
           echo "$LICENSE_HASHES" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo "$LICENSE_HASHES" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
           
-          # Принудительно подписываем через системный менеджер для гарантии
-          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          # 3. Прибиваем sdkmanager гвоздями к системному рабочему cmdline-tools гитхаба
+          ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+          
+          # На всякий случай даем права на исполнение
+          chmod +x /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
 
       - name: Build APK with Buildozer
         run: |
-          # Запускаем чистую сборку. Лицензии жестко вшиты на уровне файлов!
+          # Прокидываем системный путь к SDK в переменные окружения самого Бульдозера
+          export ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
+          export ANDROID_HOME="/usr/local/lib/android/sdk"
+          
           buildozer android debug
