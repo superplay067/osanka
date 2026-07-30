@@ -30,20 +30,14 @@ jobs:
             convert -size 512x512 xc:#F28073 icon.png
           fi
 
-      - name: Pre-accept Android SDK Licenses
+      - name: Pre-accept Android SDK Licenses Globally
         run: |
           mkdir -p ~/.android
           touch ~/.android/repositories.cfg
-          # Автоматически принимаем все лицензии Google SDK/NDK в системе
-          yes | /usr/local/lib/android/sdk/tools/bin/sdkmanager --licenses || true
+          # Подписываем вообще все лицензии Google через системный SDK-менеджер
+          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Build APK with Buildozer
         run: |
-          # Запускаем чистый Бульдозер БЕЗ утилиты 'yes |'
+          # Запускаем сборку. Все лицензии уже приняты шагом выше!
           buildozer android debug
-
-      - name: Upload Finished APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: osanka-apk
-          path: bin/*.apk
