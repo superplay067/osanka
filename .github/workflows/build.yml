@@ -27,7 +27,8 @@ jobs:
       - name: Install pip, setuptools and buildozer
         run: |
           python -m pip install --upgrade pip setuptools virtualenv
-          pip install "cython<3.0.0" git+https://github.com
+          pip install "cython<3.0.0"
+          pip install git+https://github.com
 
       - name: Check and auto-create icon if missing
         run: |
@@ -38,11 +39,13 @@ jobs:
 
       - name: Pre-accept Android Licenses Globally
         run: |
-          # Создаем глобальную папку лицензий Android, которую чекают Gradle и sdkmanager
-          mkdir -p mkdir -p ~/.android/licenses
+          # Создаем папки для лицензий и кэша Gradle заранее
+          mkdir -p ~/.android/licenses
+          mkdir -p ~/.gradle
           mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
           
-          LICENSE_HASHES="
+          # Полный пак современных хэшей лицензий Google SDK
+          SDK_HASHES="
           24333f8a63b6825ea9c5514f83c2829b004d1fee
           893a4cd1c3e7463197415a91248ee225231d5bc0
           d56f5187479451eabf01fb74bf653453a3bc5610
@@ -50,22 +53,25 @@ jobs:
           4594c0d84d151c0747a4447c283439114e327203
           ed39065b3a4e2862f15c7756ec04ee7a0cb33d1b
           "
+          PREVIEW_HASH="84831b9409646a918e30573bab4c9c91346d8abd"
           
-          # Записываем хэши везде, где их может искать система
-          echo "$LICENSE_HASHES" > ~/.android/licenses/android-sdk-license
-          echo "$LICENSE_HASHES" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          # Записываем во все возможные директории
+          echo "$SDK_HASHES" > ~/.android/licenses/android-sdk-license
+          echo "$SDK_HASHES" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          echo "$PREVIEW_HASH" > ~/.android/licenses/android-sdk-preview-license
+          echo "$PREVIEW_HASH" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
 
       - name: Build APK with Buildozer
         run: |
-          # 1. Принудительно выставляем Java 17 в переменные окружения для этого шага
+          # Жесткая привязка к Java 17
           export JAVA_HOME="/usr/lib/jvm/temurin-17-jdk-amd64"
           export PATH="$JAVA_HOME/bin:$PATH"
           
-          # 2. Сбрасываем старые переменные путей, чтобы Buildozer качал SDK в свою чистую изолированную папку
+          # Очищаем конфликтующие переменные окружения
           unset ANDROID_SDK_ROOT
           unset ANDROID_HOME
           
-          # 3. Запуск сборки в тихом автоматическом режиме
+          # Погнали собирать
           buildozer android debug
 
       - name: Upload APK Artifact
