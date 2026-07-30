@@ -32,15 +32,17 @@ jobs:
 
       - name: Force Fix Android Environment and SDK Paths
         run: |
-          # 1. Создаем корневую директорию платформы, куда полезет Buildozer
-          mkdir -p /home/runner/.buildozer/android/platform/
+          # 1. Сносим старые ссылки, если они криво легли
+          rm -rf /home/runner/.buildozer/android/platform/android-sdk
           
-          # 2. Прибиваем весь Android SDK целиком через симлинк, если его еще нет
-          if [ ! -d "/home/runner/.buildozer/android/platform/android-sdk" ]; then
-            ln -s /usr/local/lib/android/sdk /home/runner/.buildozer/android/platform/android-sdk
-          fi
+          # 2. Создаем структуру папок, которую жестко ищет старый Buildozer
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools/bin
+          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
           
-          # 3. Накатываем лицензии прямо в системный SDK гитхаба, чтобы Gradle не ругался
+          # 3. Прибиваем конкретно sdkmanager гвоздями к новому пути в системном SDK гитхаба
+          ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+          
+          # 4. Накатываем хэши лицензий в обе папки (и в системную, и в локальную кэша)
           mkdir -p /usr/local/lib/android/sdk/licenses
           LICENSE_HASHES="
           24333f8a63b6825ea9c5514f83c2829b004d1fee
@@ -51,10 +53,11 @@ jobs:
           ed39065b3a4e2862f15c7756ec04ee7a0cb33d1b
           "
           echo "$LICENSE_HASHES" > /usr/local/lib/android/sdk/licenses/android-sdk-license
+          echo "$LICENSE_HASHES" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
 
       - name: Build APK with Buildozer
         run: |
-          # Прокидываем пути во все возможные переменные для верности
+          # Прокидываем системный путь к SDK в переменные окружения самого Бульдозера
           export ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
           export ANDROID_HOME="/usr/local/lib/android/sdk"
           
