@@ -32,25 +32,21 @@ jobs:
 
       - name: Force Fix Android Environment and SDK Paths
         run: |
-          # 1. Сносим старый кривой кэш, если он остался
+          # 1. Сносим старый кривой кэш подчистую
           rm -rf /home/runner/.buildozer/android/platform/android-sdk
           
-          # 2. Создаем чистую структуру папок локального SDK
+          # 2. Создаем структуру папок локального SDK
           mkdir -p /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest
           mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
           
-          # 3. Скачиваем официальные cmdline-tools от Google (официальная стабильная версия)
-          wget https://google.com -O cmdline.zip
-          unzip -q cmdline.zip -d /tmp/cmdline
+          # 3. Копируем готовый системный cmdline-tools гитхаба в нашу локальную папку
+          cp -r /usr/local/lib/android/sdk/cmdline-tools/latest/* /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/
           
-          # 4. Переносим содержимое в структуру папок Buildozer
-          cp -r /tmp/cmdline/cmdline-tools/* /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/
-          
-          # 5. Делаем обратную совместимость для старого Buildozer (создаем ссылку на tools/bin)
+          # 4. Создаем зеркало tools/bin для проверок старого Buildozer
           mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools
           ln -sf /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin /home/runner/.buildozer/android/platform/android-sdk/tools/bin
           
-          # 6. Накатываем хэши лицензий. Теперь у нас на них полные права, никакого Operation not permitted!
+          # 5. Накатываем хэши лицензий прямо в наш локальный контролируемый SDK
           LICENSE_HASHES="
           24333f8a63b6825ea9c5514f83c2829b004d1fee
           893a4cd1c3e7463197415a91248ee225231d5bc0
@@ -61,8 +57,8 @@ jobs:
           "
           echo "$LICENSE_HASHES" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
           
-          # 7. Выставляем права на исполнение для скачанных бинарников
-          chmod +x /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/*
+          # 6. Даем полные права на исполнение локальным бинарникам
+          chmod -R +x /home/runner/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/
 
       - name: Build APK with Buildozer
         run: |
