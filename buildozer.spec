@@ -6,7 +6,6 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
 
-# Добавлен обязательный модуль android для работы с правами и jnius
 requirements = python3,kivy,kivymd,jnius,plyer,android
 
 orientation = portrait
@@ -14,20 +13,19 @@ fullscreen = 1
 android.archs = arm64-v8a, armeabi-v7a
 android.allow_backup = True
 
-# Разрешения для Android 14 (добавлена базовая служба)
+# Разрешения под Android 14
 android.permissions = FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE, POST_NOTIFICATIONS
 
-# Настройка Foreground Service с жестким указанием типа foregroundServiceType через двоеточие
-# Формат: имя:путь_к_скрипту:тип:параметры
+# Настройка Foreground Service (Тип specialUse прокинут напрямую в синтаксис p4a)
 android.services = spine_service:service.py:foreground:foregroundServiceType=specialUse
 
-# Официальный способ прокинуть <meta-data> внутрь тега <application> без ломания XML
+# Метаданные для обоснования specialUse в Google Play
 android.meta_data = android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE=Posture control and screen state tracking for health purposes
 
-# Версии SDK под жесткие требования Google Play
+# Версии SDK (NDK обновлен до 26b для стабильной сборки под API 34)
 android.api = 34
 android.minapi = 26
-android.ndk = 25b
+android.ndk = 26b
 icon.filename = icon.png
 
 [buildozer]
