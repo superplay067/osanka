@@ -19,10 +19,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install system dependencies
+      - name: Install system dependencies and Android SDK Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libgdbm-dev libssl-dev libsqlite3-dev libffi-dev uuid-dev imagemagick
+          # Устанавливаем официальный и стабильный системный пакет инструментов Android
+          sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libgdbm-dev libssl-dev libsqlite3-dev libffi-dev uuid-dev imagemagick android-sdk
 
       - name: Install pip, setuptools and buildozer
         run: |
@@ -36,27 +37,17 @@ jobs:
             convert -size 512x512 xc:#F28073 icon.png
           fi
 
-      - name: Inject Perfect Android SDK Structure and Licenses
+      - name: Bridge System SDK to Buildozer and Pre-accept Licenses
         run: |
-          # 1. Создаем структуру папок, которую ищет старый Buildozer
+          # 1. Создаем структуру папок, куда полезет проверять Buildozer
           mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
           mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
           mkdir -p ~/.android/licenses
           
-          # 2. Скачиваем официальные cmdline-tools от Google напрямую через curl
-          curl -o commandlinetools.zip https://google.com
+          # 2. Делаем прямую символическую ссылку на системный рабочий sdkmanager от Ubuntu
+          ln -sf /usr/lib/android-sdk/tools/bin/sdkmanager ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
           
-          # 3. Распаковываем утилиты во временную папку
-          unzip -q commandlinetools.zip -d /tmp/cmdline
-          
-          # 4. Копируем исполняемый нативный sdkmanager туда, где его ищет код Бульдозера
-          cp /tmp/cmdline/cmdline-tools/bin/sdkmanager ~/.buildozer/android/platform/android-sdk/tools/bin/
-          
-          # 5. Копируем всю остальную структуру библиотек sdkmanager, иначе он упадет при запуске
-          mkdir -p ~/.buildozer/android/platform/android-sdk/tools/lib
-          cp -r /tmp/cmdline/cmdline-tools/lib/* ~/.buildozer/android/platform/android-sdk/tools/lib/
-          
-          # 6. Накатываем хэши лицензий во все возможные места
+          # 3. Накатываем хэши лицензий во все возможные места
           SDK_HASHES="
           24333f8a63b6825ea9c5514f83c2829b004d1fee
           893a4cd1c3e7463197415a91248ee225231d5bc0
@@ -67,19 +58,16 @@ jobs:
           "
           echo "$SDK_HASHES" > ~/.android/licenses/android-sdk-license
           echo "$SDK_HASHES" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          
-          # 7. Выставляем права на исполнение
-          chmod +x ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
 
       - name: Build APK with Buildozer
         run: |
-          # Перенаправляем билд на чистую Java 17
+          # Выставляем Java 17
           export JAVA_HOME="/usr/lib/jvm/temurin-17-jdk-amd64"
           export PATH="$JAVA_HOME/bin:$PATH"
           
-          # Заставляем Buildozer использовать нашу подготовленную структуру SDK
-          export ANDROID_SDK_ROOT="/home/runner/.buildozer/android/platform/android-sdk"
-          export ANDROID_HOME="/home/runner/.buildozer/android/platform/android-sdk"
+          # Указываем Бульдозеру работать через стабильный системный путь SDK
+          export ANDROID_SDK_ROOT="/usr/lib/android-sdk"
+          export ANDROID_HOME="/usr/lib/android-sdk"
           
           buildozer android debug
 
