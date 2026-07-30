@@ -26,9 +26,9 @@ android.manifest.xml = """
 # Версии SDK под требования Google
 android.api = 34
 android.minapi = 26
-android.ndk = 25b
+android.ndk = 27c
 icon.filename = icon.png
 
 [buildozer]
-log_level = 1
+log_level = 2
 warn_on_root = 1
