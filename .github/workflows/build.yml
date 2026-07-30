@@ -36,22 +36,17 @@ jobs:
             convert -size 512x512 xc:#F28073 icon.png
           fi
 
-      - name: Force Hack Buildozer Sandboxed SDK Paths
+      - name: Force Patch GitHub Actions System SDK
         run: |
-          # 1. Принудительно создаем внутреннюю структуру папок, которую так отчаянно ищет Бульдозер
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools/bin
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
-          mkdir -p ~/.android/licenses
+          # 1. Заходим в официальный предустановленный SDK гитхаба
+          # И создаем там старую структуру папок tools/bin, которую так хочет Бульдозер
+          sudo mkdir -p /usr/local/lib/android/sdk/tools/bin
           
-          # 2. Делаем симлинк на РЕАЛЬНЫЙ рабочий sdkmanager из предустановленного стека GitHub Actions
-          # Он гарантированно лежит по пути /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager
-          ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /home/runner/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
+          # 2. Прибиваем симлинк на реальный sdkmanager прямо внутри системного SDK
+          sudo ln -sf /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager /usr/local/lib/android/sdk/tools/bin/sdkmanager
           
-          # 3. Копируем Java-библиотеки для sdkmanager, иначе при вызове он выдастClassNotFoundException
-          mkdir -p /home/runner/.buildozer/android/platform/android-sdk/tools/lib
-          cp -r /usr/local/lib/android/sdk/cmdline-tools/latest/lib/* /home/runner/.buildozer/android/platform/android-sdk/tools/lib/
-          
-          # 4. Прописываем хэши согласия со всеми лицензиями, чтобы сборка не ждала ручного ввода
+          # 3. Накатываем хэши лицензий в системный SDK, чтобы Gradle не ругался
+          sudo mkdir -p /usr/local/lib/android/sdk/licenses
           SDK_HASHES="
           24333f8a63b6825ea9c5514f83c2829b004d1fee
           893a4cd1c3e7463197415a91248ee225231d5bc0
@@ -60,18 +55,17 @@ jobs:
           4594c0d84d151c0747a4447c283439114e327203
           ed39065b3a4e2862f15c7756ec04ee7a0cb33d1b
           "
-          echo "$SDK_HASHES" > ~/.android/licenses/android-sdk-license
-          echo "$SDK_HASHES" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+          echo "$SDK_HASHES" | sudo tee /usr/local/lib/android/sdk/licenses/android-sdk-license > /dev/null
 
       - name: Build APK with Buildozer
         run: |
-          # Фиксируем Java 17
+          # Жестко прокидываем Java 17
           export JAVA_HOME="/usr/lib/jvm/temurin-17-jdk-amd64"
           export PATH="$JAVA_HOME/bin:$PATH"
           
-          # Заставляем Buildozer думать, что его локальный SDK — это и есть главный корень
-          export ANDROID_SDK_ROOT="/home/runner/.buildozer/android/platform/android-sdk"
-          export ANDROID_HOME="/home/runner/.buildozer/android/platform/android-sdk"
+          # Направляем Buildozer строго на системный, Пропатченный нами SDK
+          export ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
+          export ANDROID_HOME="/usr/local/lib/android/sdk"
           
           buildozer android debug
 
