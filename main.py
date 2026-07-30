@@ -51,7 +51,12 @@ class OsankaApp(App):
         # Автоматический запрос разрешений на уведомления для Android 13+
         if platform == 'android':
             from android.permissions import request_permissions, Permission
-            request_permissions([Permission.POST_NOTIFICATIONS])
+            # Передаем функцию обратного вызова, чтобы не запускать сервис раньше времени
+            request_permissions([Permission.POST_NOTIFICATIONS], self.permission_callback)
+
+    def permission_callback(self, permissions, grants):
+        # Если разрешение на пуши получено — стартуем фоновый движок
+        if grants and grants[0]:
             self.start_spine_service()
 
     def toggle_service(self, instance):
@@ -60,13 +65,21 @@ class OsankaApp(App):
 
     def start_spine_service(self):
         from android import mActivity
-        context = mActivity.getApplicationContext()
-        service = mActivity.getServiceName('spine_service')
         from jnius import autoclass
-        Intent = autoclass('android.content.Intent')
-        service_intent = Intent(context, autoclass(service))
-        # Запускаем как Foreground Service
-        context.startForegroundService(service_intent)
+
+        context = mActivity.getApplicationContext()
+        
+        # Получаем правильный Java-класс службы, сгенерированный python-for-android
+        # Шаблон названия класса: org.kivy.android.project.Service[Имя_службы_с_большой_буквы]
+        try:
+            ServiceClass = autoclass('org.bro.osanka.ServiceSpine_service')
+            Intent = autoclass('android.content.Intent')
+            service_intent = Intent(context, ServiceClass)
+            
+            # Безопасный запуск Foreground Service под Android 14
+            context.startForegroundService(service_intent)
+        except Exception as e:
+            print(f"Ошибка запуска службы: {str(e)}")
 
 if __name__ == '__main__':
     OsankaApp().run()
