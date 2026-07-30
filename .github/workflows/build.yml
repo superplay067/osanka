@@ -16,16 +16,23 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libgdbm-dev libssl-dev libsqlite3-dev libffi-dev uuid-dev
+          sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libgdbm-dev libssl-dev libsqlite3-dev libffi-dev uuid-dev imagemagick
 
       - name: Install pip and buildozer
         run: |
           pip install --upgrade pip setuptools virtualenv
           pip install "cython<3.0.0" buildozer
 
+      - name: Check and auto-create icon if missing
+        run: |
+          if [ ! -f "icon.png" ]; then
+            echo "⚠️ Иконка icon.png не найдена! Создаем временную коралловую заглушку..."
+            convert -size 512x512 xc:#F28073 icon.png
+          fi
+
       - name: Build APK with Buildozer
         run: |
-          yes | buildozer android debug
+          buildozer android debug --bdo-accept-licenses
 
       - name: Upload Finished APK Artifact
         uses: actions/upload-artifact@v4
